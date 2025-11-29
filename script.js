@@ -3,8 +3,6 @@
    ========================================= */
 const galleryData = [
     // --- GAMBAR (IMAGES) ---
-    // (Neon Cyber Samurai SUDAH DIHAPUS)
-    
     { 
         id: 2, 
         title: "Realistic Portrait LoRA", 
@@ -51,7 +49,7 @@ const galleryData = [
         prompt: "Anime style illustration, girl running with toast in mouth, school uniform, morning sunlight, makoto shinkai style" 
     },
 
-    // --- VIDEO (FILE LOKAL DI GITHUB) ---
+    // --- VIDEO (FILE LOKAL) ---
     { 
         id: 7, 
         title: "Ocean Drone Shot", 
@@ -91,7 +89,7 @@ const galleryData = [
 ];
 
 /* =========================================
-   2. GLOBAL VARIABLES & INIT
+   2. VARIABEL GLOBAL & INIT
    ========================================= */
 let currentData = [...galleryData]; 
 let currentIndex = 0;
@@ -160,7 +158,38 @@ function showPage(pageId) {
 }
 
 /* =========================================
-   6. GALLERY & CARD RENDERING
+   6. OPTIMISASI VIDEO (LAZY PLAY - ANTI LAG)
+   ========================================= */
+function initVideoObserver() {
+    // Fitur ini membuat video HANYA play saat terlihat di layar
+    if ('IntersectionObserver' in window) {
+        const videoObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                // Jika video masuk ke layar (Visible) -> PLAY
+                if (entry.isIntersecting) {
+                    // Try catch untuk menghindari error jika user belum interaksi
+                    let playPromise = entry.target.play();
+                    if (playPromise !== undefined) {
+                        playPromise.catch(error => {
+                            // Auto-play was prevented
+                        });
+                    }
+                } else {
+                    // Jika video keluar layar (Hidden) -> PAUSE (Hemat Memory)
+                    entry.target.pause(); 
+                }
+            });
+        }, { threshold: 0.5 }); // Video play jika 50% terlihat
+
+        // Pasang observer ke semua video di galeri
+        document.querySelectorAll('video.lazy-video').forEach(video => {
+            videoObserver.observe(video);
+        });
+    }
+}
+
+/* =========================================
+   7. GALLERY & CARD RENDERING
    ========================================= */
 function scrollGallery(id, val) {
     document.getElementById(id).scrollBy({ left: val, behavior: 'smooth' });
@@ -195,6 +224,11 @@ function renderGallery(data) {
     } else {
         document.getElementById('emptyState').style.display='none';
     }
+
+    // --- JALANKAN OBSERVER SETELAH RENDER ---
+    setTimeout(() => {
+        initVideoObserver();
+    }, 500); // Delay sedikit agar elemen siap
 }
 
 function createCard(item) {
@@ -203,12 +237,20 @@ function createCard(item) {
     const isFav = favorites.includes(item.id);
     const favClass = isFav ? 'active' : '';
     
-    // --- LOGIKA THUMBNAIL (VIDEO AUTOPLAY) ---
     let mediaContent = '';
+    
     if (item.type === 'video') {
-        mediaContent = `<video src="${item.videoUrl}" class="gallery-img" autoplay muted loop playsinline></video>`;
+        // PERUBAHAN PENTING (ANTI LAG):
+        // 1. Hapus 'autoplay' (biar tidak langsung jalan semua)
+        // 2. Tambah class 'lazy-video' (biar dideteksi script observer)
+        // 3. Tambah preload='none' (hemat data)
+        mediaContent = `
+            <video class="gallery-img lazy-video" muted loop playsinline preload="metadata">
+                <source src="${item.videoUrl}" type="video/mp4">
+            </video>
+        `;
     } else {
-        mediaContent = `<img src="${item.image}" class="gallery-img" loading="lazy">`;
+        mediaContent = `<img src="${item.image}" class="gallery-img" loading="lazy" alt="${item.title}">`;
     }
     
     const div = document.createElement('div'); 
@@ -235,12 +277,11 @@ function createCard(item) {
 }
 
 /* =========================================
-   7. FILTER & SEARCH
+   8. FILTER & SEARCH
    ========================================= */
 function filterByModel(cat, el) {
     document.querySelectorAll('.model-card').forEach(c=>c.classList.remove('active')); 
     if(el) el.classList.add('active');
-    
     currentData = galleryData.filter(i=>i.category===cat); 
     renderGallery(currentData);
 }
@@ -264,7 +305,7 @@ document.getElementById('searchInput').addEventListener('input', (e) => {
 });
 
 /* =========================================
-   8. FAVORITES
+   9. FAVORITES
    ========================================= */
 function toggleFavorite(e, id) {
     e.stopPropagation();
@@ -280,7 +321,7 @@ function toggleFavorite(e, id) {
 }
 
 /* =========================================
-   9. MODAL POPUP
+   10. MODAL POPUP
    ========================================= */
 const modal = document.getElementById('detailModal');
 
@@ -309,6 +350,7 @@ function updateModal(item) {
 
     const container = document.getElementById('mediaContainer');
     if (item.type === 'video') {
+        // Kontrol lengkap untuk modal popup
         container.innerHTML = `<video src="${item.videoUrl}" controls autoplay loop style="max-width:100%; max-height:100%;"></video>`;
     } else {
         container.innerHTML = `<img src="${item.image}" style="max-width:100%; max-height:100%; object-fit:contain;">`;
@@ -335,7 +377,7 @@ function closeModal() {
 }
 
 /* =========================================
-   10. MODAL SPEK PC
+   11. MODAL SPEK PC
    ========================================= */
 const sysReq = document.getElementById('sysReqModal');
 function openSysReqModal() { sysReq.classList.add('active'); }
@@ -347,7 +389,7 @@ window.onclick = (e) => {
 }
 
 /* =========================================
-   11. ANIMASI STATS
+   12. ANIMASI STATS
    ========================================= */
 function animateStats() {
     document.querySelectorAll('.stat-number').forEach(el => {
@@ -370,7 +412,7 @@ function animateStats() {
 }
 
 /* =========================================
-   12. UTILS
+   13. UTILS
    ========================================= */
 function showToast(msg) {
     const t = document.getElementById('toast');
